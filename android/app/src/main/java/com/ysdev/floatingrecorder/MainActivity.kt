@@ -52,12 +52,12 @@ class MainActivity : AppCompatActivity() {
         val bestIdx = modes.indexOf(AudioMode.bestMode()).coerceAtLeast(0)
         spMode.setSelection(bestIdx)
 
-        sbAmplify.max = 90
-        sbAmplify.progress = 20
-        updateAmplifyLabel(3.0f)
+        sbAmplify.max = 35
+        sbAmplify.progress = 10
+        updateAmplifyLabel(1.5f)
         sbAmplify.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, p: Int, u: Boolean) {
-                amplifyGain = (p + 10) / 10.0f
+                amplifyGain = (p + 5) / 10.0f
                 updateAmplifyLabel(amplifyGain)
                 Logger.d("Amplify", "Changed to ${amplifyGain}x")
             }

@@ -37,7 +37,7 @@ class AudioRecorder(private val context: Context) {
     private var echoCanceler: AcousticEchoCanceler? = null
     private var agc: AutomaticGainControl? = null
     private var activeMode: AudioMode = AudioMode.bestMode()
-    private var processor = AudioProcessor(SAMPLE_RATE, 3.0f, 0.015f, 0.4f)
+    private var processor = AudioProcessor(SAMPLE_RATE, 1.5f, 0.003f, 0.85f)
 
     var onAmplitude: ((Float) -> Unit)? = null
     var onTimeUpdate: ((Long) -> Unit)? = null

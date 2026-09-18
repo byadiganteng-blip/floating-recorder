@@ -71,7 +71,7 @@
                 android:id="@+id/tvAmplifyValue"
                 android:layout_width="60dp"
                 android:layout_height="wrap_content"
-                android:text="3.0x"
+                android:text="1.5x"
                 android:textColor="@color/accent_green"
                 android:textSize="14sp"
                 android:textStyle="bold"
