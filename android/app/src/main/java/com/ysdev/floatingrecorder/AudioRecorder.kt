@@ -12,6 +12,7 @@ import android.os.Handler
 import android.os.Looper
 import java.io.File
 import java.io.FileOutputStream
+import java.io.RandomAccessFile
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -24,6 +25,8 @@ class AudioRecorder(private val context: Context) {
         private const val CHANNELS = AudioFormat.CHANNEL_IN_STEREO
         private const val FORMAT = AudioFormat.ENCODING_PCM_16BIT
         private const val BUFFER_SIZE = 8192
+        private const val NUM_CHANNELS = 2
+        private const val BITS_PER_SAMPLE = 16
     }
 
     private val isRecording = AtomicBoolean(false)
@@ -171,14 +174,19 @@ class AudioRecorder(private val context: Context) {
     }
 
     private fun recordAudio() {
+        // Output file — pakai .wav langsung
         val outFile = createOutputFile()
         Logger.i("Recorder", "Output: ${outFile.absolutePath}")
 
         val fos = FileOutputStream(outFile)
+        // Write placeholder WAV header (44 bytes)
+        val emptyHeader = ByteArray(44)
+        fos.write(emptyHeader)
+
         val buffer = ShortArray(BUFFER_SIZE)
         val byteBuffer = ByteArray(BUFFER_SIZE * 2)
         val startTime = System.currentTimeMillis()
-        var bytesWritten = 0L
+        var bytesWritten = 0L  // total PCM data bytes (exclude header)
 
         try {
             while (isRecording.get()) {
@@ -200,8 +208,60 @@ class AudioRecorder(private val context: Context) {
             Logger.e("Recorder", "Loop err: ${e.message}")
         } finally {
             try { fos.flush(); fos.close() } catch (_: Exception) {}
+
+            // ═══ Write WAV header at beginning ═══
+            try {
+                val raf = RandomAccessFile(outFile, "rw")
+                val header = buildWavHeader(bytesWritten.toInt())
+                raf.seek(0)
+                raf.write(header)
+                raf.close()
+                Logger.i("Recorder", "WAV header written (${bytesWritten / 1024} KB)")
+            } catch (e: Exception) {
+                Logger.e("Recorder", "WAV header err: ${e.message}")
+            }
+
             Handler(Looper.getMainLooper()).post { onSaved?.invoke(outFile) }
         }
+    }
+
+    /**
+     * Build WAV header 44 bytes — PCM 16-bit stereo.
+     */
+    private fun buildWavHeader(pcmBytes: Int): ByteArray {
+        val header = ByteArray(44)
+        val byteRate = SAMPLE_RATE * NUM_CHANNELS * BITS_PER_SAMPLE / 8
+        val blockAlign = NUM_CHANNELS * BITS_PER_SAMPLE / 8
+
+        fun putString(offset: Int, s: String) {
+            for (i in s.indices) header[offset + i] = s[i].toByte()
+        }
+        fun putIntLE(offset: Int, v: Int) {
+            header[offset] = (v and 0xFF).toByte()
+            header[offset + 1] = ((v shr 8) and 0xFF).toByte()
+            header[offset + 2] = ((v shr 16) and 0xFF).toByte()
+            header[offset + 3] = ((v shr 24) and 0xFF).toByte()
+        }
+        fun putShortLE(offset: Int, v: Int) {
+            header[offset] = (v and 0xFF).toByte()
+            header[offset + 1] = ((v shr 8) and 0xFF).toByte()
+        }
+
+        putString(0, "RIFF")
+        putIntLE(4, 36 + pcmBytes)
+        putString(8, "WAVE")
+        putString(12, "fmt ")
+        putIntLE(16, 16)              // fmt chunk size
+        putShortLE(20, 1)             // PCM
+        putShortLE(22, NUM_CHANNELS)
+        putIntLE(24, SAMPLE_RATE)
+        putIntLE(28, byteRate)
+        putShortLE(32, blockAlign)
+        putShortLE(34, BITS_PER_SAMPLE)
+        putString(36, "data")
+        putIntLE(40, pcmBytes)
+
+        return header
     }
 
     private fun createOutputFile(): File {
@@ -210,6 +270,6 @@ class AudioRecorder(private val context: Context) {
             "FloatingRecorder")
         if (!dir.exists()) dir.mkdirs()
         val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-        return File(dir, "REC_${ts}.pcm")
+        return File(dir, "REC_${ts}.wav")
     }
 }
