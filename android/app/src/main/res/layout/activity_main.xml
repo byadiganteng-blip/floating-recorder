@@ -8,24 +8,37 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical">
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="🎙️ Floating Recorder"
+            android:text="Floating Recorder"
             android:textColor="@color/text"
             android:textSize="24sp"
             android:textStyle="bold"
             android:gravity="center"
-            android:paddingBottom="16dp"/>
+            android:paddingBottom="8dp"/>
+
+        <TextView
+            android:id="@+id/tvPermStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:text="Permissions..."
+            android:textColor="@color/accent_green"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:gravity="center"/>
+
         <TextView
             android:id="@+id/tvInfo"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/card_bg"
-            android:padding="16dp"
+            android:padding="12dp"
             android:textColor="@color/text"
-            android:textSize="13sp"
-            android:fontFamily="monospace"/>
+            android:textSize="12sp"/>
+
         <TextView
             android:id="@+id/tvStatus"
             android:layout_width="match_parent"
@@ -35,13 +48,15 @@
             android:textColor="@color/accent_green"
             android:textSize="13sp"
             android:textStyle="bold"/>
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Amplify (volume boost):"
+            android:text="Amplify:"
             android:textColor="@color/text_dim"
             android:textSize="12sp"
-            android:paddingTop="12dp"/>
+            android:paddingTop="8dp"/>
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -51,8 +66,7 @@
                 android:id="@+id/sbAmplify"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:progressTint="@color/accent_green"/>
+                android:layout_weight="1"/>
             <TextView
                 android:id="@+id/tvAmplifyValue"
                 android:layout_width="60dp"
@@ -63,49 +77,63 @@
                 android:textStyle="bold"
                 android:gravity="end"/>
         </LinearLayout>
+
         <Spinner
             android:id="@+id/spMode"
             android:layout_width="match_parent"
             android:layout_height="52dp"
             android:background="@drawable/card_bg"
             android:layout_marginTop="8dp"/>
-        <androidx.appcompat.widget.AppCompatButton
+
+        <Button
             android:id="@+id/btnStart"
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="16dp"
-            android:text="▶️  Aktifkan Floating Recorder"
-            android:textColor="#FFFFFF"
+            android:text="Aktifkan Floating Recorder"
+            android:textColor="@color/white"
             android:backgroundTint="@color/accent_green"/>
-        <androidx.appcompat.widget.AppCompatButton
+
+        <Button
             android:id="@+id/btnStop"
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:layout_marginTop="8dp"
-            android:text="⏹️  Stop"
-            android:textColor="#FFFFFF"
+            android:text="Stop"
+            android:textColor="@color/white"
             android:backgroundTint="@color/accent"/>
-        <androidx.appcompat.widget.AppCompatButton
+
+        <Button
+            android:id="@+id/btnFixPerm"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:text="Minta Semua Izin"
+            android:textColor="@color/white"
+            android:backgroundTint="@color/primary"/>
+
+        <Button
             android:id="@+id/btnOpen"
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:layout_marginTop="8dp"
-            android:text="📁  Buka Folder Rekaman"
+            android:text="Buka Folder Rekaman"
             android:textColor="@color/text"/>
-        <androidx.appcompat.widget.AppCompatButton
+
+        <Button
             android:id="@+id/btnLogs"
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:layout_marginTop="8dp"
-            android:text="📋  Lihat Log"
+            android:text="Lihat Log"
             android:textColor="@color/text"/>
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="\n💡 Cara pakai:\n1. Tap 'Aktifkan Floating Recorder'\n2. Izinkan overlay + mic\n3. Button merah muncul di layar\n4. Buka app lain (YouTube, Spotify)\n5. Tap button → mulai rekam\n6. Tap lagi → stop\n7. File: Downloads/FloatingRecorder/"
+            android:text="ℹ️ Izin diminta otomatis saat pertama buka.\nJika ada yang ditolak, tap 'Minta Semua Izin'.\n\nLog tersimpan di:\nDownloads/FloatingRecorder/log_YYYYMMDD.txt"
             android:textColor="@color/text_dim"
-            android:textSize="12sp"
-            android:paddingTop="16dp"
-            android:lineSpacingExtra="4dp"/>
+            android:textSize="11sp"
+            android:paddingTop="16dp"/>
     </LinearLayout>
 </ScrollView>

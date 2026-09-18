@@ -13,7 +13,6 @@ import android.provider.Settings
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.AppCompatButton
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
@@ -21,25 +20,26 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var tvInfo: TextView
     private lateinit var tvStatus: TextView
+    private lateinit var tvPermStatus: TextView
     private lateinit var spMode: Spinner
     private lateinit var sbAmplify: SeekBar
     private lateinit var tvAmplifyValue: TextView
     private var amplifyGain = 3.0f
 
     companion object {
-        const val REQ_RECORD = 100
-        const val REQ_NOTIF = 101
-        const val REQ_OVERLAY = 102
-        const val REQ_MEDIA_PROJ = 200
+        const val REQ_ALL = PermissionHelper.REQ_ALL_PERMISSIONS
+        const val REQ_MEDIA_PROJ = PermissionHelper.REQ_MEDIA_PROJ
     }
 
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
         setContentView(R.layout.activity_main)
-        Logger.i("Main", "onCreate")
+        Logger.lifecycle("MainActivity.onCreate")
+        Logger.i("Main", "Intent: ${intent?.action}")
 
         tvInfo = findViewById(R.id.tvInfo)
         tvStatus = findViewById(R.id.tvStatus)
+        tvPermStatus = findViewById(R.id.tvPermStatus)
         spMode = findViewById(R.id.spMode)
         sbAmplify = findViewById(R.id.sbAmplify)
         tvAmplifyValue = findViewById(R.id.tvAmplifyValue)
@@ -59,22 +59,141 @@ class MainActivity : AppCompatActivity() {
             override fun onProgressChanged(sb: SeekBar?, p: Int, u: Boolean) {
                 amplifyGain = (p + 10) / 10.0f
                 updateAmplifyLabel(amplifyGain)
+                Logger.d("Amplify", "Changed to ${amplifyGain}x")
             }
             override fun onStartTrackingTouch(sb: SeekBar?) {}
             override fun onStopTrackingTouch(sb: SeekBar?) {}
         })
 
-        findViewById<AppCompatButton>(R.id.btnStart).setOnClickListener { startFloating() }
-        findViewById<AppCompatButton>(R.id.btnStop).setOnClickListener {
+        findViewById<Button>(R.id.btnStart).setOnClickListener {
+            Logger.ui("Tap 'Aktifkan Floating Recorder'")
+            checkPermissionsAndStart()
+        }
+        findViewById<Button>(R.id.btnStop).setOnClickListener {
+            Logger.ui("Tap 'Stop'")
             FloatingRecorderService.stop(this)
             tvStatus.text = "Status: Stopped"
         }
-        findViewById<AppCompatButton>(R.id.btnOpen).setOnClickListener {
-            Toast.makeText(this, "Buka: Downloads/FloatingRecorder", Toast.LENGTH_LONG).show()
+        findViewById<Button>(R.id.btnOpen).setOnClickListener {
+            Logger.ui("Tap 'Buka Folder'")
+            openFolder()
         }
-        findViewById<AppCompatButton>(R.id.btnLogs).setOnClickListener { showLogs() }
+        findViewById<Button>(R.id.btnLogs).setOnClickListener {
+            Logger.ui("Tap 'Lihat Log'")
+            showLogs()
+        }
+        findViewById<Button>(R.id.btnFixPerm).setOnClickListener {
+            Logger.ui("Tap 'Minta Izin'")
+            requestAllPermissions()
+        }
 
         tvStatus.text = "Status: Idle"
+
+        // ═══ AUTO-REQUEST SEMUA IZIN saat pertama buka ═══
+        this.window.decorView.postDelayed({
+            Logger.lifecycle("Auto permission request start")
+            requestAllPermissions()
+        }, 500)
+    }
+
+    /**
+     * Request SEMUA izin berurutan: runtime → overlay → media projection.
+     */
+    private fun requestAllPermissions() {
+        // 1. Runtime permissions (mic, storage, notif)
+        val missing = PermissionHelper.getMissingPermissions(this)
+        Logger.i("Perm", "Missing runtime: $missing")
+        updatePermStatus()
+
+        if (missing.isNotEmpty()) {
+            Logger.i("Perm", "Requesting ${missing.size} permissions...")
+            ActivityCompat.requestPermissions(this, missing.toTypedArray(), REQ_ALL)
+            return
+        }
+
+        // 2. Overlay (SYSTEM_ALERT_WINDOW)
+        if (!PermissionHelper.hasOverlay(this)) {
+            Logger.w("Perm", "Overlay missing — showing dialog")
+            AlertDialog.Builder(this)
+                .setTitle("📌 Izin Tampil di Atas")
+                .setMessage("Floating Recorder butuh izin 'Tampil di atas aplikasi lain'.\n\nBuka Pengaturan → cari 'Floating Recorder' → aktifkan toggle.")
+                .setCancelable(false)
+                .setPositiveButton("Buka Pengaturan") { _, _ ->
+                    Logger.i("Perm", "Opening overlay settings")
+                    startActivity(PermissionHelper.overlayIntent(this))
+                }
+                .setNegativeButton("Nanti") { _, _ ->
+                    Logger.w("Perm", "User skipped overlay")
+                }
+                .show()
+            return
+        }
+
+        // 3. Media Projection (Android 10+) untuk internal audio
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            Logger.i("Perm", "Requesting MediaProjection...")
+            try {
+                val mpm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+                startActivityForResult(mpm.createScreenCaptureIntent(), REQ_MEDIA_PROJ)
+            } catch (e: Exception) {
+                Logger.e("Perm", "MediaProjection err: ${e.message}")
+                onAllPermissionsDone()
+            }
+        } else {
+            onAllPermissionsDone()
+        }
+    }
+
+    private fun onAllPermissionsDone() {
+        Logger.i("Perm", "ALL PERMISSIONS DONE")
+        updatePermStatus()
+        tvStatus.text = "✅ Semua izin siap — tap Aktifkan"
+    }
+
+    override fun onRequestPermissionsResult(req: Int, perms: Array<out String>, res: IntArray) {
+        super.onRequestPermissionsResult(req, perms, res)
+        Logger.i("Perm", "onRequestPermissionsResult: req=$req")
+
+        if (req == REQ_ALL) {
+            perms.forEachIndexed { i, p ->
+                val granted = i < res.size && res[i] == PackageManager.PERMISSION_GRANTED
+                Logger.permission(p, granted)
+            }
+
+            // Lanjut ke permission berikutnya
+            this.window.decorView.postDelayed({
+                requestAllPermissions()
+            }, 300)
+        }
+    }
+
+    override fun onActivityResult(req: Int, res: Int, data: Intent?) {
+        super.onActivityResult(req, res, data)
+        Logger.i("Perm", "onActivityResult: req=$req res=$res")
+
+        if (req == REQ_MEDIA_PROJ) {
+            if (res == Activity.RESULT_OK && data != null) {
+                FloatingRecorderService.mediaProjectionData = data
+                Logger.i("Perm", "MediaProjection GRANTED")
+            } else {
+                Logger.w("Perm", "MediaProjection DENIED")
+            }
+            onAllPermissionsDone()
+        }
+    }
+
+    private fun updatePermStatus() {
+        try {
+            val checks = listOf(
+                "RECORD_AUDIO" to PermissionHelper.hasRecord(this),
+                "POST_NOTIF" to PermissionHelper.hasNotif(this),
+                "STORAGE" to PermissionHelper.hasStorage(this),
+                "OVERLAY" to PermissionHelper.hasOverlay(this),
+            )
+            tvPermStatus.text = checks.joinToString(" | ") {
+                "${if (it.second) "✅" else "❌"} ${it.first}"
+            }
+        } catch (_: Exception) {}
     }
 
     private fun showDeviceInfo() {
@@ -111,82 +230,62 @@ ${modes.joinToString("\n") { "  • ${it.display}" }}""".trimIndent()
         tvAmplifyValue.text = String.format("%.1fx", gain)
     }
 
-    private fun startFloating() {
-        if (!canDrawOverlay()) {
-            AlertDialog.Builder(this)
-                .setTitle("Izin Floating Window")
-                .setMessage("Aktifkan 'Tampil di atas aplikasi lain' supaya button recorder bisa muncul.")
-                .setPositiveButton("Buka Pengaturan") { _, _ ->
-                    startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.parse("package:$packageName")))
-                }
-                .setNegativeButton("Batal", null).show()
+    private fun checkPermissionsAndStart() {
+        // Re-check semua izin
+        val missing = PermissionHelper.getMissingPermissions(this)
+        if (missing.isNotEmpty()) {
+            Logger.w("Main", "Missing perms: $missing")
+            requestAllPermissions()
+            return
+        }
+        if (!PermissionHelper.hasOverlay(this)) {
+            Logger.w("Main", "Overlay missing")
+            requestAllPermissions()
             return
         }
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-            != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
-                arrayOf(Manifest.permission.RECORD_AUDIO), REQ_RECORD)
-            return
-        }
-
-        if (Build.VERSION.SDK_INT >= 33) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this,
-                    arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQ_NOTIF)
-            }
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val mpm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-            startActivityForResult(mpm.createScreenCaptureIntent(), REQ_MEDIA_PROJ)
-        } else {
-            doStartService()
-        }
-    }
-
-    override fun onActivityResult(req: Int, res: Int, data: Intent?) {
-        super.onActivityResult(req, res, data)
-        if (req == REQ_MEDIA_PROJ) {
-            if (res == Activity.RESULT_OK && data != null) {
-                FloatingRecorderService.mediaProjectionData = data
-            }
-            doStartService()
-        }
-    }
-
-    override fun onRequestPermissionsResult(req: Int, perms: Array<out String>, res: IntArray) {
-        super.onRequestPermissionsResult(req, perms, res)
-        if (req == REQ_RECORD && res.isNotEmpty() && res[0] == PackageManager.PERMISSION_GRANTED) {
-            startFloating()
-        }
-    }
-
-    private fun doStartService() {
+        Logger.i("Main", "All perms OK — starting service")
         FloatingRecorderService.start(this)
         tvStatus.text = "Status: Service aktif — tap floating button"
     }
 
-    private fun canDrawOverlay(): Boolean =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) Settings.canDrawOverlays(this) else true
+    private fun openFolder() {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(Uri.parse(
+                    "content://com.android.externalstorage.documents/document/primary%3ADownload%2FFloatingRecorder"),
+                    "resource/folder")
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Buka: Downloads/FloatingRecorder", Toast.LENGTH_LONG).show()
+        }
+    }
 
     private fun showLogs() {
         try {
-            val dir = getExternalFilesDir("logs")
-            val files = dir?.listFiles()?.sortedByDescending { it.lastModified() }
-            if (files.isNullOrEmpty()) {
-                Toast.makeText(this, "Belum ada log", Toast.LENGTH_SHORT).show()
-                return
-            }
-            val content = files.first().readText().takeLast(3000)
+            val log = Logger.readLog(1000)
             AlertDialog.Builder(this)
-                .setTitle("Log: ${files.first().name}")
-                .setMessage(content)
-                .setPositiveButton("OK", null).show()
+                .setTitle("📋 Log (${Logger.getLogPath()?.substringAfterLast("/") ?: "?"})")
+                .setMessage(log)
+                .setPositiveButton("OK", null)
+                .show()
         } catch (e: Exception) {
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Logger.lifecycle("MainActivity.onResume")
+        updatePermStatus()
+    }
+    override fun onPause() {
+        super.onPause()
+        Logger.lifecycle("MainActivity.onPause")
+    }
+    override fun onDestroy() {
+        super.onDestroy()
+        Logger.lifecycle("MainActivity.onDestroy")
     }
 }
