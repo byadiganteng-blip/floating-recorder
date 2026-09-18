@@ -16,42 +16,37 @@ object PermissionHelper {
     fun getMissingPermissions(c: Context): List<String> {
         val list = ArrayList<String>()
 
-        // 1. RECORD_AUDIO
-        if (ContextCompat.checkSelfPermission(c, Manifest.permission.RECORD_AUDIO)
-            != PackageManager.PERMISSION_GRANTED) {
+        // RECORD_AUDIO
+        if (ContextCompat.checkSelfPermission(c, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             list.add(Manifest.permission.RECORD_AUDIO)
         }
 
-        // 2. POST_NOTIFICATIONS (Android 13+)
+        // POST_NOTIFICATIONS (Android 13+)
         if (Build.VERSION.SDK_INT >= 33) {
-            if (ContextCompat.checkSelfPermission(c, Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(c, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 list.add(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
 
-        // 3. Storage (Android 6-12)
+        // Storage (Android 6-12)
         if (Build.VERSION.SDK_INT <= 32) {
-            if (ContextCompat.checkSelfPermission(c, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(c, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                 list.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             }
-            if (ContextCompat.checkSelfPermission(c, Manifest.permission.READ_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(c, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                 list.add(Manifest.permission.READ_EXTERNAL_STORAGE)
             }
         }
 
-        // 4. READ_MEDIA_AUDIO (Android 13+)
+        // READ_MEDIA_AUDIO (Android 13+)
         if (Build.VERSION.SDK_INT >= 33) {
-            val readAudio = "android.permission.READ_MEDIA_AUDIO"
+            val perm = "android.permission.READ_MEDIA_AUDIO"
             try {
-                if (ContextCompat.checkSelfPermission(c, readAudio)
-                    != PackageManager.PERMISSION_GRANTED) {
-                    list.add(readAudio)
+                if (ContextCompat.checkSelfPermission(c, perm) != PackageManager.PERMISSION_GRANTED) {
+                    list.add(perm)
                 }
             } catch (e: Exception) {
-                Logger.w("Perm", "READ_MEDIA_AUDIO check failed: " + e.message)
+                Logger.w("Perm", "READ_MEDIA_AUDIO err: " + e.message)
             }
         }
 
@@ -59,35 +54,32 @@ object PermissionHelper {
     }
 
     fun hasOverlay(c: Context): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Settings.canDrawOverlays(c)
-        } else {
-            true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return Settings.canDrawOverlays(c)
         }
+        return true
     }
 
     fun hasRecord(c: Context): Boolean {
-        return ContextCompat.checkSelfPermission(c, Manifest.permission.RECORD_AUDIO)
-            == PackageManager.PERMISSION_GRANTED
+        val result = ContextCompat.checkSelfPermission(c, Manifest.permission.RECORD_AUDIO)
+        return result == PackageManager.PERMISSION_GRANTED
     }
 
     fun hasNotif(c: Context): Boolean {
-        return if (Build.VERSION.SDK_INT >= 33) {
-            ContextCompat.checkSelfPermission(c, Manifest.permission.POST_NOTIFICATIONS)
-                == PackageManager.PERMISSION_GRANTED
-        } else {
-            true
+        if (Build.VERSION.SDK_INT >= 33) {
+            val result = ContextCompat.checkSelfPermission(c, Manifest.permission.POST_NOTIFICATIONS)
+            return result == PackageManager.PERMISSION_GRANTED
         }
+        return true
     }
 
     fun hasStorage(c: Context): Boolean {
         if (Build.VERSION.SDK_INT > 32) return true
-        return ContextCompat.checkSelfPermission(c, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            == PackageManager.PERMISSION_GRANTED
+        val result = ContextCompat.checkSelfPermission(c, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        return result == PackageManager.PERMISSION_GRANTED
     }
 
     fun overlayIntent(c: Context): Intent {
-        return Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-            Uri.parse("package:" + c.packageName))
+        return Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + c.packageName))
     }
 }
