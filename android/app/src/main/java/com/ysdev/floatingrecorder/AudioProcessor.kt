@@ -5,40 +5,41 @@ import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
+import kotlin.math.PI
 
 class AudioProcessor(
     private val sampleRate: Int = 44100,
     private val amplifyGain: Float = 2.0f,
-    private val limiterThreshold: Float = 0.92f
+    private val limiterThreshold: Float = 0.92f,
+    private val hpCutoffHz: Float = 60f,
+    private val noiseGateThreshold: Float = 0.005f
 ) {
     private var hpPrevIn = 0f
     private var hpPrevOut = 0f
-    private val hpAlpha = 0.98f
+    private val hpAlpha: Float = run {
+        val rc = 1.0f / (2.0f * PI.toFloat() * hpCutoffHz)
+        val dt = 1.0f / sampleRate
+        rc / (rc + dt)
+    }
 
     fun process(buffer: ShortArray) {
         for (i in buffer.indices) {
-            var sample = buffer[i] / 32768.0f
-
-            // High-pass filter (buang hum < 60Hz)
-            val hpOut = hpAlpha * (hpPrevOut + sample - hpPrevIn)
-            hpPrevIn = sample
+            var s = buffer[i] / 32768.0f
+            val hpOut = hpAlpha * (hpPrevOut + s - hpPrevIn)
+            hpPrevIn = s
             hpPrevOut = hpOut
-            sample = hpOut
-
-            // Amplify
-            sample *= amplifyGain
-
-            // Soft limiter
-            if (sample > limiterThreshold) {
-                val x = sample - limiterThreshold
-                sample = limiterThreshold + (1 - limiterThreshold) * (1 - exp(-x * 2))
-            } else if (sample < -limiterThreshold) {
-                val x = -sample - limiterThreshold
-                sample = -(limiterThreshold + (1 - limiterThreshold) * (1 - exp(-x * 2)))
+            s = hpOut
+            if (abs(s) < noiseGateThreshold) s *= 0.3f
+            s *= amplifyGain
+            if (s > limiterThreshold) {
+                val x = s - limiterThreshold
+                s = limiterThreshold + (1 - limiterThreshold) * (1 - exp(-x * 2))
+            } else if (s < -limiterThreshold) {
+                val x = -s - limiterThreshold
+                s = -(limiterThreshold + (1 - limiterThreshold) * (1 - exp(-x * 2)))
             }
-
-            sample = min(1.0f, max(-1.0f, sample))
-            buffer[i] = (sample * 32767).toInt().coerceIn(-32768, 32767).toShort()
+            s = min(1.0f, max(-1.0f, s))
+            buffer[i] = (s * 32767).toInt().coerceIn(-32768, 32767).toShort()
         }
     }
 

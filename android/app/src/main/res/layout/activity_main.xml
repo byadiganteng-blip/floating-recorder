@@ -1,60 +1,293 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent"
-    android:background="@color/bg" android:padding="16dp">
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="vertical">
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="Floating Recorder v4.0" android:textColor="@color/text"
-            android:textSize="22sp" android:textStyle="bold" android:gravity="center"
-            android:paddingBottom="8dp"/>
-        <TextView android:id="@+id/tvPermStatus" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:padding="8dp"
-            android:text="Permissions..." android:textColor="@color/accent_green"
-            android:textSize="12sp" android:gravity="center"/>
-        <TextView android:id="@+id/tvInfo" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:background="@drawable/card_bg"
-            android:padding="12dp" android:textColor="@color/text" android:textSize="12sp"/>
-        <TextView android:id="@+id/tvStatus" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:padding="12dp"
-            android:text="Status: Idle" android:textColor="@color/accent_green"
-            android:textSize="13sp" android:textStyle="bold"/>
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="Amplify:" android:textColor="@color/text_dim" android:textSize="12sp"
-            android:paddingTop="8dp"/>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="horizontal" android:gravity="center_vertical">
-            <SeekBar android:id="@+id/sbAmplify" android:layout_width="0dp"
-                android:layout_height="wrap_content" android:layout_weight="1"/>
-            <TextView android:id="@+id/tvAmplifyValue" android:layout_width="60dp"
-                android:layout_height="wrap_content" android:text="2.0x"
-                android:textColor="@color/accent_green" android:textSize="14sp"
-                android:textStyle="bold" android:gravity="end"/>
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/hero_gradient"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Floating Recorder"
+                android:textColor="@color/white"
+                android:textSize="26sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="v5.0 - Audio + Screen Recorder"
+                android:textColor="#E0FFFFFF"
+                android:textSize="13sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="by YsDev"
+                android:textColor="#B0FFFFFF"
+                android:textSize="11sp" />
         </LinearLayout>
-        <Spinner android:id="@+id/spMode" android:layout_width="match_parent"
-            android:layout_height="52dp" android:background="@drawable/card_bg"
-            android:layout_marginTop="8dp"/>
-        <Button android:id="@+id/btnStart" android:layout_width="match_parent"
-            android:layout_height="56dp" android:layout_marginTop="16dp"
-            android:text="Aktifkan Floating Recorder" android:textColor="@color/white"
-            android:backgroundTint="@color/accent_green"/>
-        <Button android:id="@+id/btnStop" android:layout_width="match_parent"
-            android:layout_height="48dp" android:layout_marginTop="8dp"
-            android:text="Stop" android:textColor="@color/white"
-            android:backgroundTint="@color/accent"/>
-        <Button android:id="@+id/btnFixPerm" android:layout_width="match_parent"
-            android:layout_height="48dp" android:layout_marginTop="8dp"
-            android:text="Minta Semua Izin" android:textColor="@color/white"
-            android:backgroundTint="@color/primary"/>
-        <Button android:id="@+id/btnOpen" android:layout_width="match_parent"
-            android:layout_height="48dp" android:layout_marginTop="8dp"
-            android:text="Buka Folder" android:textColor="@color/text"/>
-        <Button android:id="@+id/btnLogs" android:layout_width="match_parent"
-            android:layout_height="48dp" android:layout_marginTop="8dp"
-            android:text="Lihat Log" android:textColor="@color/text"/>
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="Log: Downloads/FloatingRecorder/log_YYYYMMDD.txt"
-            android:textColor="@color/text_dim" android:textSize="11sp"
-            android:paddingTop="16dp"/>
+
+        <TextView
+            android:id="@+id/tvPermStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/card_glass"
+            android:gravity="center"
+            android:padding="12dp"
+            android:text="Permissions..."
+            android:textColor="@color/accent_green"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/tvInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/card_glass"
+            android:lineSpacingExtra="4dp"
+            android:padding="14dp"
+            android:textColor="@color/text"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/card_glass"
+            android:padding="14dp"
+            android:text="Status: Idle"
+            android:textColor="@color/accent_green"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tabMode"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/card_glass"
+            app:tabIndicatorColor="@color/accent_green"
+            app:tabIndicatorHeight="3dp"
+            app:tabSelectedTextColor="@color/text"
+            app:tabTextColor="@color/text_dim">
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Audio" />
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Screen" />
+        </com.google.android.material.tabs.TabLayout>
+
+        <LinearLayout
+            android:id="@+id/panelAudio"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/card_glass"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Amplify"
+                android:textColor="@color/text_dim"
+                android:textSize="12sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <SeekBar
+                    android:id="@+id/sbAmplify"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:id="@+id/tvAmplifyValue"
+                    android:layout_width="64dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:text="2.0x"
+                    android:textColor="@color/accent_green"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Noise Gate"
+                android:textColor="@color/text_dim"
+                android:textSize="12sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <SeekBar
+                    android:id="@+id/sbNoiseGate"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:id="@+id/tvNoiseValue"
+                    android:layout_width="64dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:text="0%"
+                    android:textColor="@color/accent_green"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Audio Source"
+                android:textColor="@color/text_dim"
+                android:textSize="12sp" />
+
+            <Spinner
+                android:id="@+id/spMode"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/card_bg" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/panelScreen"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/card_glass"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Screen Recorder"
+                android:textColor="@color/text"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Default: 1080p - 30 FPS - 8 Mbps"
+                android:textColor="@color/text_dim"
+                android:textSize="12sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:lineSpacingExtra="3dp"
+                android:text="Tap floating button (mode Screen) untuk mulai. File disimpan di Movies/FloatingRecorder/."
+                android:textColor="@color/text_dim"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnStart"
+            android:layout_width="match_parent"
+            android:layout_height="58dp"
+            android:layout_marginTop="20dp"
+            android:background="@drawable/btn_primary"
+            android:text="Aktifkan Floating Recorder"
+            android:textColor="@color/white"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnStop"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginTop="8dp"
+            android:backgroundTint="@color/accent"
+            android:text="Stop"
+            android:textColor="@color/white" />
+
+        <Button
+            android:id="@+id/btnFixPerm"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginTop="8dp"
+            android:backgroundTint="@color/primary"
+            android:text="Minta Semua Izin"
+            android:textColor="@color/white" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnFiles"
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_marginEnd="4dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/card_elevated"
+                android:text="Files"
+                android:textColor="@color/text" />
+
+            <Button
+                android:id="@+id/btnLogs"
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/card_elevated"
+                android:text="Logs"
+                android:textColor="@color/text" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:gravity="center"
+            android:lineSpacingExtra="2dp"
+            android:text="Tips: Gunakan headset untuk hasil terbaik. Log disimpan di Android/data/com.ysdev.floatingrecorder/files/logs/"
+            android:textColor="@color/text_muted"
+            android:textSize="11sp" />
+
     </LinearLayout>
 </ScrollView>
