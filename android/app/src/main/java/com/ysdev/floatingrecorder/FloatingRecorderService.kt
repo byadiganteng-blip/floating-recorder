@@ -286,8 +286,9 @@ class FloatingRecorderService : Service() {
         } catch (_: Throwable) {}
     }
 
-    private fun formatTime(sec: Long): String =
-        String.format(Locale.US, "%02d:%02d", sec / 60, sec % 60)
+    private fun formatTime(sec: Long): String {
+        return String.format(Locale.US, "%02d:%02d", sec / 60, sec % 60)
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {

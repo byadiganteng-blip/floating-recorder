@@ -49,23 +49,31 @@ object Logger {
         } catch (_: Throwable) {}
     }
 
-    fun i(tag: String, msg: String) = log("INFO", tag, msg, null)
-    fun w(tag: String, msg: String) = log("WARN", tag, msg, null)
-    fun e(tag: String, msg: String) = log("ERROR", tag, msg, null)
-    fun d(tag: String, msg: String) = log("DEBUG", tag, msg, null)
+    fun i(tag: String, msg: String) { log("INFO", tag, msg, null) }
+    fun w(tag: String, msg: String) { log("WARN", tag, msg, null) }
+    fun e(tag: String, msg: String) { log("ERROR", tag, msg, null) }
+    fun d(tag: String, msg: String) { log("DEBUG", tag, msg, null) }
 
-    fun lifecycle(event: String, detail: String = "") =
-        log("LIFECYCLE", "App", event + (if (detail.isNotEmpty()) " — " + detail else ""), null)
+    fun lifecycle(event: String, detail: String = "") {
+        val msg = event + (if (detail.isNotEmpty()) " — " + detail else "")
+        log("LIFECYCLE", "App", msg, null)
+    }
 
-    fun permission(name: String, granted: Boolean, extra: String = "") =
-        log("PERM", "Perm", name + " : " + (if (granted) "GRANTED" else "DENIED") +
-            (if (extra.isNotEmpty()) " — " + extra else ""), null)
+    fun permission(name: String, granted: Boolean, extra: String = "") {
+        val status = if (granted) "GRANTED" else "DENIED"
+        val msg = name + " : " + status + (if (extra.isNotEmpty()) " — " + extra else "")
+        log("PERM", "Perm", msg, null)
+    }
 
-    fun audio(event: String, detail: String = "") =
-        log("AUDIO", "Recorder", event + (if (detail.isNotEmpty()) " — " + detail else ""), null)
+    fun audio(event: String, detail: String = "") {
+        val msg = event + (if (detail.isNotEmpty()) " — " + detail else "")
+        log("AUDIO", "Recorder", msg, null)
+    }
 
-    fun ui(action: String, detail: String = "") =
-        log("UI", "User", action + (if (detail.isNotEmpty()) " — " + detail else ""), null)
+    fun ui(action: String, detail: String = "") {
+        val msg = action + (if (detail.isNotEmpty()) " — " + detail else "")
+        log("UI", "User", msg, null)
+    }
 
     private fun log(level: String, tag: String, msg: String, t: Throwable?) {
         try {
@@ -101,8 +109,16 @@ object Logger {
 
     fun getLogPath(): String? = logFile?.absolutePath
 
-    fun readLog(maxLines: Int = 500): String = try {
-        logFile?.takeIf { it.exists() }?.readLines()?.takeLast(maxLines)?.joinToString("\n")
-            ?: "(no log)"
-    } catch (e: Exception) { "(err: " + e.message + ")" }
+    fun readLog(maxLines: Int = 500): String {
+        return try {
+            val f = logFile
+            if (f == null || !f.exists()) {
+                "(no log)"
+            } else {
+                f.readLines().takeLast(maxLines).joinToString("\n")
+            }
+        } catch (e: Exception) {
+            "(err: " + e.message + ")"
+        }
+    }
 }
