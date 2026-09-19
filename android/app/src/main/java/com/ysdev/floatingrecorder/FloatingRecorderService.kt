@@ -3,7 +3,6 @@ package com.ysdev.floatingrecorder
 import android.app.*
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
@@ -34,13 +33,12 @@ class FloatingRecorderService : Service() {
                     c.startForegroundService(i)
                 } else c.startService(i)
             } catch (e: Throwable) {
-                Logger.e("Floating", "start err: ${e.message}")
+                Logger.e("Floating", "start err: " + e.message)
             }
         }
 
         fun stop(c: Context) {
-            try { c.stopService(Intent(c, FloatingRecorderService::class.java)) }
-            catch (_: Throwable) {}
+            try { c.stopService(Intent(c, FloatingRecorderService::class.java)) } catch (_: Throwable) {}
         }
     }
 
@@ -58,26 +56,17 @@ class FloatingRecorderService : Service() {
         instance = this
         try {
             Logger.i("Floating", "onCreate")
-
             createChannel()
-
-            // Foreground notification WAJIB
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    startForeground(NOTIF_ID, buildNotif("Floating Recorder", "Ready"),
-                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
-                } else {
-                    startForeground(NOTIF_ID, buildNotif("Floating Recorder", "Ready"))
-                }
+                startForeground(NOTIF_ID, buildNotif("Floating Recorder", "Ready"))
                 Logger.i("Floating", "startForeground OK")
             } catch (e: Throwable) {
-                Logger.e("Floating", "startForeground err: ${e.message}")
+                Logger.e("Floating", "startForeground err: " + e.message)
             }
-
             initMediaProjection()
             showFloatingButton()
         } catch (e: Throwable) {
-            Logger.e("Floating", "onCreate FATAL: ${e.message}")
+            Logger.e("Floating", "onCreate FATAL: " + e.message)
         }
     }
 
@@ -87,8 +76,7 @@ class FloatingRecorderService : Service() {
                 val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 if (nm.getNotificationChannel(CHANNEL_ID) == null) {
                     nm.createNotificationChannel(
-                        NotificationChannel(CHANNEL_ID, "Floating Recorder",
-                            NotificationManager.IMPORTANCE_LOW).apply { setShowBadge(false) })
+                        NotificationChannel(CHANNEL_ID, "Floating Recorder", NotificationManager.IMPORTANCE_LOW).apply { setShowBadge(false) })
                 }
             }
         } catch (_: Throwable) {}
@@ -97,8 +85,7 @@ class FloatingRecorderService : Service() {
     private fun buildNotif(title: String, content: String): Notification {
         val pi = PendingIntent.getActivity(this, 0,
             Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or
-                (if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0))
+            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0))
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentTitle(title).setContentText(content)
@@ -120,7 +107,7 @@ class FloatingRecorderService : Service() {
             mediaProjection = mpm.getMediaProjection(Activity.RESULT_OK, data)
             Logger.i("Floating", "MediaProjection acquired")
         } catch (e: Throwable) {
-            Logger.e("Floating", "MediaProjection err: ${e.message}")
+            Logger.e("Floating", "MediaProjection err: " + e.message)
         }
     }
 
@@ -137,8 +124,7 @@ class FloatingRecorderService : Service() {
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 type,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
@@ -170,7 +156,7 @@ class FloatingRecorderService : Service() {
                         else -> false
                     }
                 } catch (e: Throwable) {
-                    Logger.e("Floating", "touch err: ${e.message}")
+                    Logger.e("Floating", "touch err: " + e.message)
                     false
                 }
             }
@@ -178,7 +164,7 @@ class FloatingRecorderService : Service() {
             windowManager?.addView(floatView, layoutParams)
             Logger.i("Floating", "addView OK")
         } catch (e: Throwable) {
-            Logger.e("Floating", "addView FATAL: ${e.message}")
+            Logger.e("Floating", "addView FATAL: " + e.message)
         }
     }
 
@@ -196,29 +182,23 @@ class FloatingRecorderService : Service() {
                 rec.onTimeUpdate = { ms ->
                     try {
                         elapsedSec = ms / 1000
-                        updateNotif("🎙️ Recording", formatTime(elapsedSec))
+                        updateNotif("Recording", formatTime(elapsedSec))
                     } catch (_: Throwable) {}
                 }
                 rec.onModeChanged = { mode, _ ->
-                    try { updateNotif("🎙️ ${mode.display}", formatTime(elapsedSec)) } catch (_: Throwable) {}
+                    try { updateNotif(mode.display, formatTime(elapsedSec)) } catch (_: Throwable) {}
                 }
                 rec.onSaved = { file ->
-                    try {
-                        updateNotif("✅ Saved", file.name)
-                        updateUI(false)
-                    } catch (_: Throwable) {}
+                    try { updateNotif("Saved", file.name); updateUI(false) } catch (_: Throwable) {}
                 }
                 rec.onError = { err ->
-                    try {
-                        updateNotif("❌ Error", err)
-                        updateUI(false)
-                    } catch (_: Throwable) {}
+                    try { updateNotif("Error", err); updateUI(false) } catch (_: Throwable) {}
                 }
                 rec.start()
                 updateUI(true)
             }
         } catch (e: Throwable) {
-            Logger.e("Floating", "toggle FATAL: ${e.message}")
+            Logger.e("Floating", "toggle FATAL: " + e.message)
         }
     }
 
@@ -228,16 +208,16 @@ class FloatingRecorderService : Service() {
                 val dot = v.findViewById<View>(R.id.statusDot)
                 val tvTime = v.findViewById<TextView>(R.id.tvTime)
                 val tvLabel = v.findViewById<TextView>(R.id.tvLabel)
-                dot?.setBackgroundResource(
-                    if (recording) R.drawable.dot_red else R.drawable.dot_green)
+                dot?.setBackgroundResource(if (recording) R.drawable.dot_red else R.drawable.dot_green)
                 tvTime?.text = if (recording) formatTime(elapsedSec) else "00:00"
                 tvLabel?.text = if (recording) "REC" else "Idle"
             }
         } catch (_: Throwable) {}
     }
 
-    private fun formatTime(sec: Long): String =
-        String.format(Locale.US, "%02d:%02d", sec / 60, sec % 60)
+    private fun formatTime(sec: Long): String {
+        return String.format(Locale.US, "%02d:%02d", sec / 60, sec % 60)
+    }
 
     override fun onDestroy() {
         super.onDestroy()

@@ -16,19 +16,16 @@ object PermissionHelper {
     fun getMissingPermissions(c: Context): List<String> {
         val list = ArrayList<String>()
 
-        // RECORD_AUDIO
         if (ContextCompat.checkSelfPermission(c, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             list.add(Manifest.permission.RECORD_AUDIO)
         }
 
-        // POST_NOTIFICATIONS (Android 13+)
         if (Build.VERSION.SDK_INT >= 33) {
             if (ContextCompat.checkSelfPermission(c, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 list.add(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
 
-        // Storage (Android 6-12)
         if (Build.VERSION.SDK_INT <= 32) {
             if (ContextCompat.checkSelfPermission(c, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                 list.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -38,7 +35,6 @@ object PermissionHelper {
             }
         }
 
-        // READ_MEDIA_AUDIO (Android 13+)
         if (Build.VERSION.SDK_INT >= 33) {
             val perm = "android.permission.READ_MEDIA_AUDIO"
             try {

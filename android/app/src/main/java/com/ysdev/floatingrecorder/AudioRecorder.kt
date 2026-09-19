@@ -2,9 +2,6 @@ package com.ysdev.floatingrecorder
 
 import android.content.Context
 import android.media.*
-import android.media.audiofx.AcousticEchoCanceler
-import android.media.audiofx.AutomaticGainControl
-import android.media.audiofx.NoiseSuppressor
 import android.media.projection.MediaProjection
 import android.os.Build
 import android.os.Environment
@@ -21,7 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class AudioRecorder(private val context: Context) {
 
     companion object {
-        private const val SAMPLE_RATE = 44100
+        private val SAMPLE_RATES = intArrayOf(44100, 48000, 22050, 16000)
         private const val CHANNELS = AudioFormat.CHANNEL_IN_STEREO
         private const val FORMAT = AudioFormat.ENCODING_PCM_16BIT
         private const val BUFFER_SIZE = 8192
@@ -33,11 +30,9 @@ class AudioRecorder(private val context: Context) {
     private var recordThread: Thread? = null
     private var audioRecord: AudioRecord? = null
     private var mediaProjection: MediaProjection? = null
-    private var noiseSuppressor: NoiseSuppressor? = null
-    private var echoCanceler: AcousticEchoCanceler? = null
-    private var agc: AutomaticGainControl? = null
-    private var activeMode: AudioMode = AudioMode.bestMode()
-    private var processor = AudioProcessor(SAMPLE_RATE, 1.5f, 0.003f, 0.85f)
+    private var activeSampleRate = 44100
+    private var activeMode: AudioMode = AudioMode.MIC_DIRECT
+    private var processor = AudioProcessor(44100, 2.0f, 0.92f)
 
     var onAmplitude: ((Float) -> Unit)? = null
     var onTimeUpdate: ((Long) -> Unit)? = null
@@ -46,7 +41,7 @@ class AudioRecorder(private val context: Context) {
     var onModeChanged: ((AudioMode, String) -> Unit)? = null
 
     fun setAmplify(gain: Float) {
-        processor = AudioProcessor(SAMPLE_RATE, gain.coerceIn(1f, 10f), 0.015f, 0.4f)
+        processor = AudioProcessor(activeSampleRate, gain.coerceIn(0.5f, 6f), 0.92f)
     }
 
     fun setMediaProjection(mp: MediaProjection?) { mediaProjection = mp }
@@ -58,12 +53,12 @@ class AudioRecorder(private val context: Context) {
             isRecording.set(true)
             recordThread = Thread {
                 try { recordLoop() } catch (e: Throwable) {
-                    Logger.e("Recorder", "Thread FATAL: ${e.message}")
+                    Logger.e("Recorder", "Thread FATAL: " + e.message)
                     try { onError?.invoke(e.message ?: "thread crash") } catch (_: Exception) {}
                 }
             }.also { it.start() }
         } catch (e: Throwable) {
-            Logger.e("Recorder", "start err: ${e.message}")
+            Logger.e("Recorder", "start err: " + e.message)
             isRecording.set(false)
             try { onError?.invoke(e.message ?: "start fail") } catch (_: Exception) {}
         }
@@ -74,7 +69,6 @@ class AudioRecorder(private val context: Context) {
         isRecording.set(false)
         try { recordThread?.join(3000) } catch (_: Exception) {}
         recordThread = null
-        releaseEffects()
         try { audioRecord?.stop() } catch (_: Exception) {}
         try { audioRecord?.release() } catch (_: Exception) {}
         audioRecord = null
@@ -83,23 +77,25 @@ class AudioRecorder(private val context: Context) {
     fun isRunning(): Boolean = isRecording.get()
 
     private fun recordLoop() {
-        val modesToTry = AudioMode.fallbackChain()
+        val modes = AudioMode.fallbackChain()
         var success = false
 
-        for (mode in modesToTry) {
-            try {
-                if (tryStartWithMode(mode)) {
+        for (mode in modes) {
+            for (sr in SAMPLE_RATES) {
+                Logger.i("Recorder", "Trying: " + mode.display + " @ " + sr + "Hz")
+                if (tryStartWithMode(mode, sr)) {
                     activeMode = mode
+                    activeSampleRate = sr
                     success = true
-                    Logger.i("Recorder", "Mode: ${mode.display}")
+                    Logger.i("Recorder", "SUCCESS: " + mode.display + " @ " + sr + "Hz")
+                    processor = AudioProcessor(sr, 2.0f, 0.92f)
                     Handler(Looper.getMainLooper()).post {
-                        try { onModeChanged?.invoke(mode, mode.description) } catch (_: Exception) {}
+                        try { onModeChanged?.invoke(mode, mode.description + " @ " + sr + "Hz") } catch (_: Exception) {}
                     }
                     break
                 }
-            } catch (e: Throwable) {
-                Logger.w("Recorder", "Mode ${mode.display} err: ${e.message}")
             }
+            if (success) break
         }
 
         if (!success) {
@@ -111,93 +107,57 @@ class AudioRecorder(private val context: Context) {
         recordAudio()
     }
 
-    private fun tryStartWithMode(mode: AudioMode): Boolean {
+    private fun tryStartWithMode(mode: AudioMode, sampleRate: Int): Boolean {
         return try {
             val minBuf = try {
-                AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNELS, FORMAT)
+                AudioRecord.getMinBufferSize(sampleRate, CHANNELS, FORMAT)
             } catch (_: Throwable) { 0 }.coerceAtLeast(BUFFER_SIZE * 2)
 
             val builder = AudioRecord.Builder()
                 .setAudioSource(mode.audioSource)
                 .setAudioFormat(AudioFormat.Builder()
-                    .setEncoding(FORMAT).setSampleRate(SAMPLE_RATE)
-                    .setChannelMask(CHANNELS).build())
+                    .setEncoding(FORMAT)
+                    .setSampleRate(sampleRate)
+                    .setChannelMask(CHANNELS)
+                    .build())
                 .setBufferSizeInBytes(minBuf)
 
-            if (mode == AudioMode.INTERNAL_APC
-                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-                && mediaProjection != null) {
-                try {
-                    val config = AudioPlaybackCaptureConfiguration.Builder(mediaProjection!!)
-                        .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
-                        .addMatchingUsage(AudioAttributes.USAGE_GAME)
-                        .addMatchingUsage(AudioAttributes.USAGE_UNKNOWN)
-                        .build()
-                    builder.setAudioPlaybackCaptureConfig(config)
-                } catch (_: Throwable) { return false }
-            }
-
             audioRecord = builder.build()
-            if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
+
+            val state = audioRecord?.state
+            Logger.i("Recorder", "AudioRecord state: " + state)
+
+            if (state != AudioRecord.STATE_INITIALIZED) {
                 try { audioRecord?.release() } catch (_: Throwable) {}
                 audioRecord = null
                 return false
-            }
-
-            if (mode != AudioMode.INTERNAL_APC) {
-                setupEffects(audioRecord!!.audioSessionId)
             }
 
             try {
                 audioRecord!!.startRecording()
-            } catch (_: Throwable) {
-                releaseEffects()
+            } catch (e: Throwable) {
+                Logger.w("Recorder", "startRecording err: " + e.message)
                 try { audioRecord?.release() } catch (_: Throwable) {}
                 audioRecord = null
                 return false
             }
 
-            if (audioRecord!!.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
-                releaseEffects()
+            val recState = audioRecord!!.recordingState
+            Logger.i("Recorder", "recordingState: " + recState)
+
+            if (recState != AudioRecord.RECORDSTATE_RECORDING) {
                 try { audioRecord?.release() } catch (_: Throwable) {}
                 audioRecord = null
                 return false
             }
+
             true
         } catch (e: Throwable) {
-            Logger.e("Recorder", "tryStart ${mode.display}: ${e.message}")
+            Logger.w("Recorder", "tryStart err: " + e.message)
             try { audioRecord?.release() } catch (_: Throwable) {}
             audioRecord = null
             false
         }
-    }
-
-    private fun setupEffects(sessionId: Int) {
-        try {
-            if (NoiseSuppressor.isAvailable()) {
-                noiseSuppressor = NoiseSuppressor.create(sessionId)
-                noiseSuppressor?.enabled = true
-            }
-        } catch (_: Throwable) {}
-        try {
-            if (AcousticEchoCanceler.isAvailable()) {
-                echoCanceler = AcousticEchoCanceler.create(sessionId)
-                echoCanceler?.enabled = true
-            }
-        } catch (_: Throwable) {}
-        try {
-            if (AutomaticGainControl.isAvailable()) {
-                agc = AutomaticGainControl.create(sessionId)
-                agc?.enabled = true
-            }
-        } catch (_: Throwable) {}
-    }
-
-    private fun releaseEffects() {
-        try { noiseSuppressor?.release() } catch (_: Throwable) {}
-        try { echoCanceler?.release() } catch (_: Throwable) {}
-        try { agc?.release() } catch (_: Throwable) {}
-        noiseSuppressor = null; echoCanceler = null; agc = null
     }
 
     private fun recordAudio() {
@@ -206,41 +166,57 @@ class AudioRecorder(private val context: Context) {
 
         try {
             outFile = createOutputFile()
-            Logger.i("Recorder", "Output: ${outFile.absolutePath}")
+            Logger.i("Recorder", "Output: " + outFile.absolutePath)
+            Logger.i("Recorder", "Sample rate: " + activeSampleRate + "Hz")
 
             fos = FileOutputStream(outFile)
-            val emptyHeader = ByteArray(44)
-            fos.write(emptyHeader)
+            fos.write(ByteArray(44))
 
             val buffer = ShortArray(BUFFER_SIZE)
             val byteBuffer = ByteArray(BUFFER_SIZE * 2)
             val startTime = System.currentTimeMillis()
             var bytesWritten = 0L
+            var firstSampleLogged = false
+            var peakAmplitude = 0
 
             while (isRecording.get()) {
                 val read = try {
                     audioRecord?.read(buffer, 0, buffer.size) ?: 0
                 } catch (e: Throwable) {
-                    Logger.e("Recorder", "read err: ${e.message}")
+                    Logger.e("Recorder", "read err: " + e.message)
                     break
                 }
                 if (read <= 0) continue
 
-                try {
-                    processor.process(buffer)
-                } catch (e: Throwable) {
-                    Logger.w("Recorder", "process err: ${e.message}")
+                if (!firstSampleLogged) {
+                    var maxAbs = 0
+                    for (i in 0 until read) {
+                        val v = kotlin.math.abs(buffer[i].toInt())
+                        if (v > maxAbs) maxAbs = v
+                    }
+                    Logger.i("Recorder", "First sample max amplitude: " + maxAbs + " / 32767")
+                    firstSampleLogged = true
+                }
+
+                for (i in 0 until read) {
+                    val v = kotlin.math.abs(buffer[i].toInt())
+                    if (v > peakAmplitude) peakAmplitude = v
+                }
+
+                try { processor.process(buffer) } catch (e: Throwable) {
+                    Logger.w("Recorder", "process err: " + e.message)
                 }
 
                 for (i in 0 until read) {
                     byteBuffer[i * 2] = (buffer[i].toInt() and 0xFF).toByte()
                     byteBuffer[i * 2 + 1] = ((buffer[i].toInt() shr 8) and 0xFF).toByte()
                 }
+
                 try {
                     fos.write(byteBuffer, 0, read * 2)
                     bytesWritten += read * 2
                 } catch (e: Throwable) {
-                    Logger.e("Recorder", "write err: ${e.message}")
+                    Logger.e("Recorder", "write err: " + e.message)
                     break
                 }
 
@@ -255,24 +231,24 @@ class AudioRecorder(private val context: Context) {
                     }
                 } catch (_: Throwable) {}
             }
+
+            Logger.i("Recorder", "Peak amplitude during record: " + peakAmplitude)
         } catch (e: Throwable) {
-            Logger.e("Recorder", "recordAudio FATAL: ${e.message}")
+            Logger.e("Recorder", "recordAudio FATAL: " + e.message)
         } finally {
             try { fos?.flush(); fos?.close() } catch (_: Throwable) {}
 
-            // WAV header
             try {
                 if (outFile != null && outFile.exists()) {
                     val size = outFile.length() - 44
                     val raf = RandomAccessFile(outFile, "rw")
-                    val header = buildWavHeader(size.toInt())
                     raf.seek(0)
-                    raf.write(header)
+                    raf.write(buildWavHeader(size.toInt(), activeSampleRate))
                     raf.close()
-                    Logger.i("Recorder", "WAV header OK")
+                    Logger.i("Recorder", "WAV header OK (" + (size / 1024) + " KB)")
                 }
             } catch (e: Throwable) {
-                Logger.e("Recorder", "WAV header err: ${e.message}")
+                Logger.e("Recorder", "WAV header err: " + e.message)
             }
 
             if (outFile != null) {
@@ -283,9 +259,9 @@ class AudioRecorder(private val context: Context) {
         }
     }
 
-    private fun buildWavHeader(pcmBytes: Int): ByteArray {
+    private fun buildWavHeader(pcmBytes: Int, sampleRate: Int): ByteArray {
         val header = ByteArray(44)
-        val byteRate = SAMPLE_RATE * NUM_CHANNELS * BITS_PER_SAMPLE / 8
+        val byteRate = sampleRate * NUM_CHANNELS * BITS_PER_SAMPLE / 8
         val blockAlign = NUM_CHANNELS * BITS_PER_SAMPLE / 8
 
         fun putString(offset: Int, s: String) {
@@ -309,13 +285,12 @@ class AudioRecorder(private val context: Context) {
         putIntLE(16, 16)
         putShortLE(20, 1)
         putShortLE(22, NUM_CHANNELS)
-        putIntLE(24, SAMPLE_RATE)
+        putIntLE(24, sampleRate)
         putIntLE(28, byteRate)
         putShortLE(32, blockAlign)
         putShortLE(34, BITS_PER_SAMPLE)
         putString(36, "data")
         putIntLE(40, pcmBytes)
-
         return header
     }
 
@@ -325,6 +300,6 @@ class AudioRecorder(private val context: Context) {
             "FloatingRecorder")
         if (!dir.exists()) dir.mkdirs()
         val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-        return File(dir, "REC_${ts}.wav")
+        return File(dir, "REC_" + ts + ".wav")
     }
 }

@@ -9,30 +9,15 @@ android {
         applicationId "com.ysdev.floatingrecorder"
         minSdk 23
         targetSdk 34
-        versionCode 8
-        versionName "3.4"
+        versionCode 10
+        versionName "4.0"
         vectorDrawables { useSupportLibrary true }
-    }
-    signingConfigs {
-        release {
-            def ksPath = System.getenv("KEYSTORE_PATH")
-            def ksPass = System.getenv("KEYSTORE_PASSWORD")
-            def kAlias = System.getenv("KEY_ALIAS")
-            def kPass  = System.getenv("KEY_PASSWORD")
-            if (ksPath && ksPass && kAlias && kPass) {
-                storeFile file(ksPath)
-                storePassword ksPass
-                keyAlias kAlias
-                keyPassword kPass
-            }
-        }
     }
     buildTypes {
         debug { debuggable true }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            if (System.getenv("KEYSTORE_PATH")) { signingConfig signingConfigs.release }
         }
     }
     compileOptions {
