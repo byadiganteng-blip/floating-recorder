@@ -43,7 +43,6 @@ class AudioRecorder(private val context: Context) {
     private var processor = AudioProcessor(44100, 2.0f)
     private var amplifyGain = 2.0f
     private var noiseGate = 0.005f
-    private var lastUri: Uri? = null
 
     var onAmplitude: ((Float) -> Unit)? = null
     var onTimeUpdate: ((Long) -> Unit)? = null
@@ -170,16 +169,20 @@ class AudioRecorder(private val context: Context) {
         var outFile: File? = null
         var pendingUri: Uri? = null
         var fileBytes = 0L
+        val startTime = System.currentTimeMillis()
 
         try {
             val triple = createOutput()
-            fos = triple.first; outFile = triple.second; pendingUri = triple.third
+            fos = triple.first
+            outFile = triple.second
+            pendingUri = triple.third
+            val localFos = fos ?: throw RuntimeException("output stream null")
+
             Logger.i("Recorder", "Output: " + (outFile?.absolutePath ?: pendingUri.toString()))
-            fos.write(ByteArray(44))
+            localFos.write(ByteArray(44))
 
             val buffer = ShortArray(BUFFER_SIZE)
             val byteBuffer = ByteArray(BUFFER_SIZE * 2)
-            val startTime = System.currentTimeMillis()
             var peak = 0
 
             while (isRecording.get()) {
@@ -206,19 +209,21 @@ class AudioRecorder(private val context: Context) {
                 }
 
                 try {
-                    fos.write(byteBuffer, 0, read * 2)
+                    localFos.write(byteBuffer, 0, read * 2)
                     fileBytes += read * 2
                 } catch (e: Throwable) { Logger.e("Recorder", "write: " + e.message); break }
 
                 if (fileBytes > MAX_FILE_BYTES) {
                     Logger.i("Recorder", "Auto-split at " + (fileBytes / 1024 / 1024) + " MB")
-                    try { fos.flush(); fos.close() } catch (_: Throwable) {}
+                    try { localFos.flush(); localFos.close() } catch (_: Throwable) {}
                     finalizeWav(outFile, pendingUri, fileBytes, activeSampleRate)
                     outFile?.let { onSaved?.invoke(it) }
 
                     val np = createOutput()
-                    fos = np.first; outFile = np.second; pendingUri = np.third
-                    fos.write(ByteArray(44))
+                    fos = np.first
+                    outFile = np.second
+                    pendingUri = np.third
+                    fos?.write(ByteArray(44))
                     fileBytes = 0L
                 }
 
@@ -259,14 +264,13 @@ class AudioRecorder(private val context: Context) {
                     put(MediaStore.Audio.Media.SIZE, pcmBytes + 44)
                 }
                 context.contentResolver.update(uri, values, null, null)
-                lastUri = uri
             }
         } catch (e: Throwable) {
             Logger.e("Recorder", "finalizeWav: " + e.message)
         }
     }
 
-    private fun createOutput(): Triple<OutputStream, File?, Uri?> {
+    private fun createOutput(): Triple<OutputStream?, File?, Uri?> {
         val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
         val name = "REC_" + ts + ".wav"
 
@@ -279,9 +283,9 @@ class AudioRecorder(private val context: Context) {
             }
             val uri = context.contentResolver.insert(
                 MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
-                ?: throw RuntimeException("MediaStore insert failed")
-            val os = context.contentResolver.openOutputStream(uri)
-                ?: throw RuntimeException("openOutputStream failed")
+            val os: OutputStream? = if (uri != null) {
+                context.contentResolver.openOutputStream(uri)
+            } else null
             Triple(os, null, uri)
         } else {
             @Suppress("DEPRECATION")

@@ -15,10 +15,12 @@ object PermissionHelper {
 
     fun getMissingPermissions(c: Context): List<String> {
         val list = ArrayList<String>()
+
         if (ContextCompat.checkSelfPermission(c, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED) {
             list.add(Manifest.permission.RECORD_AUDIO)
         }
+
         if (Build.VERSION.SDK_INT >= 33) {
             if (ContextCompat.checkSelfPermission(c, Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -27,30 +29,41 @@ object PermissionHelper {
             val media = "android.permission.READ_MEDIA_AUDIO"
             try {
                 if (ContextCompat.checkSelfPermission(c, media)
-                    != PackageManager.PERMISSION_GRANTED) list.add(media)
+                    != PackageManager.PERMISSION_GRANTED) {
+                    list.add(media)
+                }
             } catch (_: Exception) {}
         }
+
         if (Build.VERSION.SDK_INT <= 32) {
             if (ContextCompat.checkSelfPermission(c, Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 != PackageManager.PERMISSION_GRANTED) {
                 list.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             }
         }
+
         return list
     }
 
-    fun hasOverlay(c: Context): Boolean =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) Settings.canDrawOverlays(c) else true
+    fun hasOverlay(c: Context): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return Settings.canDrawOverlays(c)
+        }
+        return true
+    }
 
-    fun hasRecord(c: Context): Boolean =
-        ContextCompat.checkSelfPermission(c, Manifest.permission.RECORD_AUDIO)
+    fun hasRecord(c: Context): Boolean {
+        return ContextCompat.checkSelfPermission(c, Manifest.permission.RECORD_AUDIO)
             == PackageManager.PERMISSION_GRANTED
+    }
 
-    fun hasNotif(c: Context): Boolean =
-        if (Build.VERSION.SDK_INT >= 33)
-            ContextCompat.checkSelfPermission(c, Manifest.permission.POST_NOTIFICATIONS)
+    fun hasNotif(c: Context): Boolean {
+        if (Build.VERSION.SDK_INT >= 33) {
+            return ContextCompat.checkSelfPermission(c, Manifest.permission.POST_NOTIFICATIONS)
                 == PackageManager.PERMISSION_GRANTED
-        else true
+        }
+        return true
+    }
 
     fun hasStorage(c: Context): Boolean {
         if (Build.VERSION.SDK_INT > 32) return true
@@ -58,7 +71,8 @@ object PermissionHelper {
             == PackageManager.PERMISSION_GRANTED
     }
 
-    fun overlayIntent(c: Context): Intent =
-        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+    fun overlayIntent(c: Context): Intent {
+        return Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
             Uri.parse("package:" + c.packageName))
+    }
 }

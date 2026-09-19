@@ -51,7 +51,10 @@ class ScreenRecorder(private val context: Context) {
             val mpm = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE)
                     as MediaProjectionManager
             mediaProjection = mpm.getMediaProjection(resultCode, data)
-                ?: run { onError?.invoke("MediaProjection null"); return false }
+            if (mediaProjection == null) {
+                onError?.invoke("MediaProjection null")
+                return false
+            }
 
             val pair = createOutput(config.format)
             outputFile = pair.first
@@ -95,34 +98,41 @@ class ScreenRecorder(private val context: Context) {
     fun isRunning(): Boolean = isRecording
 
     private fun buildRecorder(cfg: ScreenConfig): MediaRecorder {
-        val rec = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-            MediaRecorder(context) else @Suppress("DEPRECATION") MediaRecorder()
-
-        return rec.apply {
-            setVideoSource(MediaRecorder.VideoSource.SCREEN)
-            if (cfg.withAudio) setAudioSource(MediaRecorder.AudioSource.MIC)
-
-            setOutputFormat(
-                if (cfg.format == ScreenFormat.MP4)
-                    MediaRecorder.OutputFormat.MPEG_4
-                else MediaRecorder.OutputFormat.WEBM
-            )
-
-            setVideoEncoder(MediaRecorder.VideoEncoder.H264)
-            setVideoSize(cfg.width, cfg.height)
-            setVideoFrameRate(cfg.fps)
-            setVideoEncodingBitRate(cfg.videoBitrate)
-
-            if (cfg.withAudio) {
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setAudioSamplingRate(44100)
-                setAudioEncodingBitRate(cfg.audioBitrate)
-                setAudioChannels(2)
-            }
-
-            if (outputFile != null) setOutputFile(outputFile!!.absolutePath)
-            prepare()
+        val rec: MediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            MediaRecorder(context)
+        } else {
+            @Suppress("DEPRECATION")
+            MediaRecorder()
         }
+
+        rec.setVideoSource(MediaRecorder.VideoSource.SURFACE)
+        if (cfg.withAudio) {
+            rec.setAudioSource(MediaRecorder.AudioSource.MIC)
+        }
+
+        if (cfg.format == ScreenFormat.MP4) {
+            rec.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+        } else {
+            rec.setOutputFormat(MediaRecorder.OutputFormat.WEBM)
+        }
+
+        rec.setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+        rec.setVideoSize(cfg.width, cfg.height)
+        rec.setVideoFrameRate(cfg.fps)
+        rec.setVideoEncodingBitRate(cfg.videoBitrate)
+
+        if (cfg.withAudio) {
+            rec.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+            rec.setAudioSamplingRate(44100)
+            rec.setAudioEncodingBitRate(cfg.audioBitrate)
+            rec.setAudioChannels(2)
+        }
+
+        if (outputFile != null) {
+            rec.setOutputFile(outputFile!!.absolutePath)
+        }
+        rec.prepare()
+        return rec
     }
 
     private fun createOutput(format: ScreenFormat): Pair<File?, Uri?> {
@@ -169,6 +179,8 @@ class ScreenRecorder(private val context: Context) {
         try { mediaRecorder?.reset() } catch (_: Throwable) {}
         try { mediaRecorder?.release() } catch (_: Throwable) {}
         try { mediaProjection?.stop() } catch (_: Throwable) {}
-        virtualDisplay = null; mediaRecorder = null; mediaProjection = null
+        virtualDisplay = null
+        mediaRecorder = null
+        mediaProjection = null
     }
 }
